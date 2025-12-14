@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- CONFIGURATION ---
-EMAIL_TO="vtikerch@yandex.ru"
+EMAIL_TO="vitalya.dev@gmail.com"
 
 # 1. Fetch IP once to use in both Subject and Image
 VPS_IP=$(curl -4 -s ifconfig.me)
@@ -17,18 +17,19 @@ IMG_HOURLY="/tmp/vps_hourly.png"
 IMG_COMBINED="/tmp/vps_combined.png"
 
 # --- GENERATE IMAGES ---
-# Generate the standard vnstati graphs
+# Generate the standard vnstati graphs (runs on Host)
 /usr/bin/vnstati -L -s -o $IMG_SUMMARY
 /usr/bin/vnstati -L -d -o $IMG_DAILY
 /usr/bin/vnstati -L -hg -o $IMG_HOURLY
 
-# --- IMAGE MAGIC (STITCHING & ANNOTATING) ---
-# 1. +append: Joins images horizontally
-# 2. -gravity NorthWest: Sets anchor to Top-Left corner
-# 3. -pointsize 20 -fill red: Sets text size and color
-# 4. -annotate +20+20: Writes the text 20px from top and left
-/usr/bin/convert $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY +append \
-    -gravity NorthWest -pointsize 20 -fill red -annotate +20+20 "VPS: $VPS_IP" \
+# --- DOCKER IMAGE MAGIC ---
+# We use docker to run imagemagick without installing it on the host.
+# --rm: Removes the container after it finishes (saves space).
+# -v /tmp:/tmp: Gives the container access to the images in /tmp.
+# +append: Stacks Horizontally (use -append for Vertical).
+docker run --rm -v /tmp:/tmp dpokidov/imagemagick \
+    $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY -append \
+    -gravity NorthEast -pointsize 20 -fill red -annotate +20+20 "VPS: $VPS_IP" \
     $IMG_COMBINED
 
 # --- GENERATE VPN TEXT REPORT ---
@@ -51,7 +52,7 @@ if [ -z "$VPN_REPORT" ]; then
 fi
 
 # --- SEND EMAIL ---
-# We now attach only the $IMG_COMBINED file
+# We attach only the $IMG_COMBINED file
 echo -e "Attached is the combined traffic graph for today.\n\n=== OpenVPN Active Clients ===$VPN_REPORT" | \
 /usr/bin/mutt -s "$SUBJECT" -a $IMG_COMBINED -- $EMAIL_TO
 

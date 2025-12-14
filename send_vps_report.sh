@@ -27,7 +27,7 @@ IMG_COMBINED="/tmp/vps_combined.png"
 # --rm: Removes the container after it finishes (saves space).
 # -v /tmp:/tmp: Gives the container access to the images in /tmp.
 # +append: Stacks Horizontally (use -append for Vertical).
-docker run --rm -v /tmp:/tmp dpokidov/imagemagick \
+docker run --rm --entrypoint magick -v /tmp:/tmp dpokidov/imagemagick \
     $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY -append \
     -gravity NorthEast -pointsize 20 -fill red -annotate +20+20 "VPS: $VPS_IP" \
     $IMG_COMBINED

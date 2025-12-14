@@ -10,15 +10,20 @@ LOG_PATTERN="/etc/openvpn/server/logs/*-status.log"
 IMG_SUMMARY="/tmp/vps_summary.png"
 IMG_DAILY="/tmp/vps_daily.png"
 IMG_HOURLY="/tmp/vps_hourly.png"
+IMG_COMBINED="/tmp/vps_combined.png"
 
 # --- GENERATE IMAGES ---
+# Generate the standard vnstati graphs
 /usr/bin/vnstati -L -s -o $IMG_SUMMARY
 /usr/bin/vnstati -L -d -o $IMG_DAILY
 /usr/bin/vnstati -L -hg -o $IMG_HOURLY
 
+# --- IMAGE MAGIC (STITCHING) ---
+# use convert with +append to join them horizontally
+# (Use -append if you want them vertically stacked instead)
+/usr/bin/convert $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY +append $IMG_COMBINED
+
 # --- GENERATE VPN TEXT REPORT ---
-# FNR==1 triggers at the first line of every new file. 
-# We split the filename to get just the name (e.g., 'vpn-tcp-status.log') without the full path.
 VPN_REPORT=$(awk -F, '
     FNR==1 { 
         n=split(FILENAME, a, "/"); 
@@ -38,8 +43,9 @@ if [ -z "$VPN_REPORT" ]; then
 fi
 
 # --- SEND EMAIL ---
-echo -e "Attached are the traffic graphs for today.\n\n=== OpenVPN Active Clients ===$VPN_REPORT" | \
-/usr/bin/mutt -s "$SUBJECT" -a $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY -- $EMAIL_TO
+# We now attach only the $IMG_COMBINED file
+echo -e "Attached is the combined traffic graph for today.\n\n=== OpenVPN Active Clients ===$VPN_REPORT" | \
+/usr/bin/mutt -s "$SUBJECT" -a $IMG_COMBINED -- $EMAIL_TO
 
 # --- CLEANUP ---
-rm $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY
+rm $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY $IMG_COMBINED

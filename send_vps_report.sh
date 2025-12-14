@@ -2,7 +2,11 @@
 
 # --- CONFIGURATION ---
 EMAIL_TO="vtikerch@yandex.ru"
-SUBJECT="VPS $(curl -4 -s ifconfig.me) Traffic Report"
+
+# 1. Fetch IP once to use in both Subject and Image
+VPS_IP=$(curl -4 -s ifconfig.me)
+SUBJECT="VPS $VPS_IP Traffic Report"
+
 # We point to the directory, not a specific file
 LOG_PATTERN="/etc/openvpn/server/logs/*-status.log"
 
@@ -18,10 +22,14 @@ IMG_COMBINED="/tmp/vps_combined.png"
 /usr/bin/vnstati -L -d -o $IMG_DAILY
 /usr/bin/vnstati -L -hg -o $IMG_HOURLY
 
-# --- IMAGE MAGIC (STITCHING) ---
-# use convert with +append to join them horizontally
-# (Use -append if you want them vertically stacked instead)
-/usr/bin/convert $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY +append $IMG_COMBINED
+# --- IMAGE MAGIC (STITCHING & ANNOTATING) ---
+# 1. +append: Joins images horizontally
+# 2. -gravity NorthWest: Sets anchor to Top-Left corner
+# 3. -pointsize 20 -fill red: Sets text size and color
+# 4. -annotate +20+20: Writes the text 20px from top and left
+/usr/bin/convert $IMG_SUMMARY $IMG_DAILY $IMG_HOURLY +append \
+    -gravity NorthWest -pointsize 20 -fill red -annotate +20+20 "VPS: $VPS_IP" \
+    $IMG_COMBINED
 
 # --- GENERATE VPN TEXT REPORT ---
 VPN_REPORT=$(awk -F, '
